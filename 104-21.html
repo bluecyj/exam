@@ -1,0 +1,1252 @@
+<!DOCTYPE html>
+<!--
+  版本紀錄（後續修正請另存新版本，保留前版與既有紀錄，不覆蓋原檔）
+  v1.1：本次上傳的原始版本，保留為 optics_lab_v1_1.html。
+  v1.2（2026-11-19）：僅修正實驗區的響應式尺寸、高解析度畫布、完整光路取景、
+    標示避讓及縮放後的操作座標；沿用原有題目、物理判定、任務與控制功能。
+-->
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>光學反射與色光探究實驗室 | Jay's Lab</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-dark: #0b1120;
+      --panel-bg: rgba(15, 23, 42, 0.78);
+      --border-glow: rgba(56, 189, 248, 0.25);
+      --neon-cyan: #00f0ff;
+      --laser-blue: #38bdf8;
+    }
+
+    body {
+      background-color: var(--bg-dark);
+      background-image: 
+        radial-gradient(circle at 15% 15%, rgba(14, 165, 233, 0.12) 0%, transparent 45%),
+        radial-gradient(circle at 85% 80%, rgba(56, 189, 248, 0.08) 0%, transparent 50%),
+        linear-gradient(to right, rgba(30, 41, 59, 0.35) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(30, 41, 59, 0.35) 1px, transparent 1px);
+      background-size: 100% 100%, 100% 100%, 32px 32px, 32px 32px;
+      color: #e2e8f0;
+      font-family: 'Inter', 'Noto Sans TC', sans-serif;
+      overflow-x: hidden;
+    }
+
+    .font-mono-tech {
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .glass-panel {
+      background: var(--panel-bg);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid var(--border-glow);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+    }
+
+    .neon-text {
+      text-shadow: 0 0 12px rgba(0, 240, 255, 0.6);
+    }
+
+    /* 自訂科技風滑桿 */
+    input[type="range"] {
+      -webkit-appearance: none;
+      appearance: none;
+      background: transparent;
+      cursor: pointer;
+    }
+    input[type="range"]::-webkit-slider-runnable-track {
+      height: 8px;
+      border-radius: 999px;
+      background: linear-gradient(90deg, #1e293b 0%, #0284c7 50%, #00f0ff 100%);
+      border: 1px solid rgba(56, 189, 248, 0.4);
+    }
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      margin-top: -7px;
+      background-color: #0f172a;
+      border: 2.5px solid #00f0ff;
+      box-shadow: 0 0 12px #00f0ff;
+      height: 22px;
+      width: 22px;
+      border-radius: 50%;
+      transition: transform 0.15s ease;
+    }
+    input[type="range"]::-webkit-slider-thumb:hover {
+      transform: scale(1.15);
+    }
+
+    /* 切換開關 */
+    .toggle-checkbox:checked {
+      right: 0;
+      border-color: #00f0ff;
+    }
+    .toggle-checkbox:checked + .toggle-label {
+      background-color: rgba(2, 132, 199, 0.6);
+      border-color: #00f0ff;
+    }
+
+    .canvas-container {
+      position: relative;
+      width: 100%;
+      min-width: 0;
+      aspect-ratio: 16 / 10;
+      min-height: 260px;
+      max-height: 480px;
+      max-height: min(480px, 70svh);
+      flex-shrink: 0;
+      border-radius: 0.75rem;
+      overflow: hidden;
+      background: radial-gradient(circle at 25% 45%, #0f172a 0%, #060913 100%);
+      border: 1px solid rgba(56, 189, 248, 0.35);
+      box-shadow: inset 0 0 40px rgba(0, 0, 0, 0.8);
+    }
+
+    #opticsCanvas {
+      position: absolute;
+      inset: 0;
+      display: block;
+      width: 100%;
+      height: 100%;
+      touch-action: none;
+    }
+    
+    /* 隱藏捲軸 */
+    .scrollbar-hide::-webkit-scrollbar {
+      display: none;
+    }
+    .scrollbar-hide {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col justify-between px-3 py-4 sm:px-6 lg:px-8">
+
+  <div class="max-w-7xl w-full mx-auto space-y-5">
+    
+    <!-- 頂部標題列與考題展開鈕 -->
+    <header class="glass-panel rounded-2xl p-4 sm:p-5 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+      <div class="flex items-start sm:items-center gap-3.5">
+        <div class="w-11 h-11 rounded-xl bg-sky-500/15 border border-sky-400/40 flex items-center justify-center shrink-0 shadow-[0_0_15px_rgba(56,189,248,0.3)]">
+          <svg class="w-6 h-6 text-cyan-300" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+          </svg>
+        </div>
+        <div>
+          <div class="flex items-center gap-2 flex-wrap">
+            <h1 class="text-lg sm:text-2xl font-bold tracking-wide text-white leading-tight">光學反射與色光探究實驗室</h1>
+            <span class="px-2.5 py-0.5 text-[10px] sm:text-xs font-mono-tech rounded-full bg-cyan-500/15 text-cyan-300 border border-cyan-400/30 whitespace-nowrap">OPTICS LAB</span>
+          </div>
+          <p class="text-[11px] sm:text-sm text-slate-400 mt-1 leading-snug">結合「光的反射定律（法線基準）」與「物體顏色與色光反射」雙重概念模擬</p>
+        </div>
+      </div>
+
+      <button id="btnToggleProblem" type="button" class="w-full md:w-auto mt-1 md:mt-0 px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl bg-slate-800/90 hover:bg-slate-700/90 border border-sky-400/40 text-sky-300 text-xs sm:text-sm font-medium transition flex items-center justify-center gap-1.5 sm:gap-2 shrink-0 cursor-pointer">
+        <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+        </svg>
+        <span id="toggleProblemText" class="whitespace-nowrap">展開原始會考題幹</span>
+      </button>
+    </header>
+
+    <!-- 可折疊原始考題區塊 -->
+    <section id="problemDrawer" class="hidden glass-panel rounded-2xl p-4 sm:p-5 border-l-4 border-l-cyan-400 transition-all">
+      <div class="flex flex-col lg:flex-row gap-4 justify-between items-start">
+        <div class="space-y-2 text-sm sm:text-base leading-relaxed text-slate-200">
+          <div class="inline-block px-2.5 py-0.5 rounded bg-sky-500/20 text-sky-300 text-[11px] sm:text-xs font-bold mb-1">原始試題情境</div>
+          <p>
+            桌面上由左至右擺放著<span class="text-rose-400 font-bold">紅色</span>、<span class="text-white font-bold underline decoration-slate-500">白色</span>、<span class="text-emerald-400 font-bold">綠色</span>三張相鄰的圖卡，左端放置一平面鏡與桌面垂直，圖卡間相鄰位置與平面鏡上 P 點的角度關係，如右下方實驗模擬區所示（由鏡面往右依序為 <span class="font-mono-tech text-cyan-300">30°</span>、<span class="font-mono-tech text-cyan-300">45°</span>、<span class="font-mono-tech text-cyan-300">60°</span>）。
+          </p>
+          <p>
+            今將<span class="text-sky-400 font-bold">藍色光線</span>以<span class="text-amber-300 font-bold">入射角 X 度</span>入射在平面鏡 P 點，看見光線反射後落在圖卡上形成<span class="text-cyan-300 font-bold">藍色光點</span>，依上述條件推論，下列何者最可能為 X 的數值？
+          </p>
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2 font-mono-tech text-[13px] sm:text-sm">
+            <div class="px-3 py-1.5 rounded-lg bg-slate-800/80 border border-slate-700">(A) 35</div>
+            <div class="px-3 py-1.5 rounded-lg bg-slate-800/80 border border-slate-700">(B) 40</div>
+            <div class="px-3 py-1.5 rounded-lg bg-slate-800/80 border border-slate-700">(C) 50</div>
+            <div class="px-3 py-1.5 rounded-lg bg-slate-800/80 border border-slate-700">(D) 75</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 即時數據儀表板 (4 張科技數據卡) -->
+    <section class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+      <div class="glass-panel rounded-xl p-3 sm:p-4 flex flex-col justify-center">
+        <div class="text-[11px] sm:text-xs text-slate-400 flex flex-col sm:flex-row sm:items-center justify-between gap-1 sm:gap-0">
+          <span>入射角 X (與法線)</span>
+          <span class="w-2 h-2 rounded-full bg-sky-400 animate-pulse self-start sm:self-auto hidden sm:block"></span>
+        </div>
+        <div class="mt-1 sm:mt-1.5 flex items-baseline gap-1">
+          <span id="statIncident" class="text-xl sm:text-3xl font-bold font-mono-tech text-sky-300 neon-text">30°</span>
+        </div>
+      </div>
+
+      <div class="glass-panel rounded-xl p-3 sm:p-4 flex flex-col justify-center">
+        <div class="text-[11px] sm:text-xs text-slate-400 flex flex-col sm:flex-row sm:items-center justify-between gap-1 sm:gap-0">
+          <span>反射角 (與法線)</span>
+          <span class="text-[10px] sm:text-[11px] font-mono-tech text-slate-500">θr = θi</span>
+        </div>
+        <div class="mt-1 sm:mt-1.5 flex items-baseline gap-1">
+          <span id="statReflect" class="text-xl sm:text-3xl font-bold font-mono-tech text-cyan-300">30°</span>
+        </div>
+      </div>
+
+      <div class="glass-panel rounded-xl p-3 sm:p-4 flex flex-col justify-center">
+        <div class="text-[11px] sm:text-xs text-slate-400 flex flex-col sm:flex-row sm:items-center justify-between gap-1 sm:gap-0">
+          <span>反射光與鏡面夾角</span>
+          <span class="text-[10px] sm:text-[11px] font-mono-tech text-amber-400/80">90° - X</span>
+        </div>
+        <div class="mt-1 sm:mt-1.5 flex items-baseline gap-1">
+          <span id="statMirrorAngle" class="text-xl sm:text-3xl font-bold font-mono-tech text-amber-300">60°</span>
+        </div>
+      </div>
+
+      <div id="statusCard" class="glass-panel rounded-xl p-3 sm:p-4 border-l-4 border-l-emerald-400 transition-colors flex flex-col justify-center">
+        <div class="text-[11px] sm:text-xs text-slate-400">落點與觀測結果</div>
+        <div id="statSpotTitle" class="mt-1 text-sm sm:text-lg font-bold text-emerald-300 leading-tight">綠色圖卡邊緣</div>
+        <div id="statSpotSub" class="text-[10px] sm:text-xs text-slate-300 mt-1 leading-tight line-clamp-2">藍光被綠卡吸收，無明顯藍點</div>
+      </div>
+    </section>
+
+    <!-- 主實驗區：左側光學畫布 + 右側控制面板 -->
+    <main class="grid grid-cols-1 lg:grid-cols-12 gap-5">
+      
+      <!-- 互動實驗畫布 (7欄) -->
+      <div class="lg:col-span-7 min-w-0 glass-panel rounded-2xl p-3 sm:p-4 flex flex-col justify-between">
+        <div class="flex items-center justify-between mb-2.5 px-1">
+          <div class="flex items-center gap-2 text-[11px] sm:text-sm font-medium text-slate-300">
+            <span class="inline-block w-2.5 h-2.5 rounded-full bg-cyan-400 shadow-[0_0_8px_#00f0ff] shrink-0"></span>
+            <span class="leading-tight">暗室光路模擬（可在畫布拖曳光束調整）</span>
+          </div>
+          <span class="text-xs font-mono-tech text-slate-400 hidden sm:inline">450nm BLUE LASER</span>
+        </div>
+
+        <div id="canvasWrapper" class="canvas-container">
+          <canvas id="opticsCanvas"></canvas>
+        </div>
+
+        <!-- 圖例說明列 -->
+        <div class="mt-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-[10px] sm:text-xs text-slate-400 px-1">
+          <div class="flex flex-wrap items-center gap-3 sm:gap-4">
+            <span class="flex items-center gap-1.5"><span class="w-3 h-0.5 bg-cyan-400 inline-block shadow-[0_0_6px_#00f0ff]"></span> 藍色雷射</span>
+            <span class="flex items-center gap-1.5"><span class="w-3 h-0.5 border-t border-dashed border-amber-400 inline-block"></span> 法線</span>
+            <span class="flex items-center gap-1.5"><span class="w-3 h-0.5 border-t border-dotted border-slate-400 inline-block"></span> 參考線</span>
+          </div>
+          <span class="text-slate-500 whitespace-nowrap">提示：白色圖卡可反射所有色光</span>
+        </div>
+      </div>
+
+      <!-- 變因與鷹架控制面板 (5欄) -->
+      <div class="lg:col-span-5 glass-panel rounded-2xl p-4 sm:p-5 flex flex-col justify-between space-y-5">
+        
+        <!-- 1. 入射角 X 控制 -->
+        <div class="space-y-3">
+          <div class="flex items-center justify-between">
+            <label for="angleSlider" class="text-sm font-bold text-white flex items-center gap-2">
+              <span class="w-1.5 h-4 bg-cyan-400 rounded-full"></span>
+              操縱變因：調整入射角 X
+            </label>
+            <span id="sliderBadge" class="font-mono-tech text-[11px] sm:text-sm font-bold px-2 sm:px-2.5 py-0.5 rounded bg-sky-500/20 text-cyan-300 border border-sky-400/30">X = 30°</span>
+          </div>
+
+          <div class="flex items-center gap-2 sm:gap-3 pt-1">
+            <button id="btnMinus" type="button" class="w-10 sm:w-11 h-10 sm:h-11 rounded-xl bg-slate-800 hover:bg-slate-700 active:scale-95 border border-slate-600 text-white font-mono-tech font-bold text-base flex items-center justify-center transition cursor-pointer shrink-0" title="減少 1 度">-1°</button>
+            <input id="angleSlider" type="range" min="5" max="85" step="1" value="30" class="flex-1 min-w-0" />
+            <button id="btnPlus" type="button" class="w-10 sm:w-11 h-10 sm:h-11 rounded-xl bg-slate-800 hover:bg-slate-700 active:scale-95 border border-slate-600 text-white font-mono-tech font-bold text-base flex items-center justify-center transition cursor-pointer shrink-0" title="增加 1 度">+1°</button>
+          </div>
+
+          <!-- 考題選項快速跳轉鈕 -->
+          <div class="pt-1">
+            <div class="text-[11px] sm:text-xs text-slate-400 mb-2">快速測試考題選項數值：</div>
+            <div class="grid grid-cols-4 gap-1.5 sm:gap-2">
+              <button type="button" data-preset="35" class="preset-btn py-1.5 sm:py-2 px-1 rounded-lg bg-slate-800/90 hover:bg-sky-900/50 border border-slate-600 hover:border-cyan-400 text-[11px] sm:text-sm font-mono-tech text-slate-200 transition cursor-pointer whitespace-nowrap">(A) 35°</button>
+              <button type="button" data-preset="40" class="preset-btn py-1.5 sm:py-2 px-1 rounded-lg bg-slate-800/90 hover:bg-sky-900/50 border border-slate-600 hover:border-cyan-400 text-[11px] sm:text-sm font-mono-tech text-slate-200 transition cursor-pointer whitespace-nowrap">(B) 40°</button>
+              <button type="button" data-preset="50" class="preset-btn py-1.5 sm:py-2 px-1 rounded-lg bg-slate-800/90 hover:bg-sky-900/50 border border-slate-600 hover:border-cyan-400 text-[11px] sm:text-sm font-mono-tech text-slate-200 transition cursor-pointer whitespace-nowrap">(C) 50°</button>
+              <button type="button" data-preset="75" class="preset-btn py-1.5 sm:py-2 px-1 rounded-lg bg-slate-800/90 hover:bg-sky-900/50 border border-slate-600 hover:border-cyan-400 text-[11px] sm:text-sm font-mono-tech text-slate-200 transition cursor-pointer whitespace-nowrap">(D) 75°</button>
+            </div>
+          </div>
+        </div>
+
+        <hr class="border-slate-700/70" />
+
+        <!-- 2. 鷹架輔助開關 -->
+        <div class="space-y-3">
+          <div class="text-sm font-bold text-white flex items-center gap-2">
+            <span class="w-1.5 h-4 bg-amber-400 rounded-full"></span>
+            視覺鷹架與物理效果設定
+          </div>
+
+          <div class="space-y-2.5">
+            <!-- 開關 1：法線 -->
+            <label class="flex items-center justify-between p-2 sm:p-2.5 rounded-xl bg-slate-800/50 border border-slate-700/70 cursor-pointer hover:border-slate-600 transition">
+              <div class="pr-2 sm:pr-3">
+                <div class="text-xs sm:text-sm text-slate-200 font-medium leading-tight">顯示法線（水平虛線）</div>
+                <div class="text-[10px] sm:text-xs text-slate-400 mt-0.5 leading-tight">垂直於平面鏡的基準線</div>
+              </div>
+              <input id="chkNormal" type="checkbox" checked class="w-4 h-4 sm:w-5 sm:h-5 shrink-0 accent-cyan-400 rounded cursor-pointer" />
+            </label>
+
+            <!-- 開關 2：入射角與反射角標示 -->
+            <label class="flex items-center justify-between p-2 sm:p-2.5 rounded-xl bg-slate-800/50 border border-slate-700/70 cursor-pointer hover:border-slate-600 transition">
+              <div class="pr-2 sm:pr-3">
+                <div class="text-xs sm:text-sm text-slate-200 font-medium leading-tight">顯示入射角與反射角弧線</div>
+                <div class="text-[10px] sm:text-xs text-slate-400 mt-0.5 leading-tight">標示光線與法線的夾角 X°</div>
+              </div>
+              <input id="chkAngles" type="checkbox" checked class="w-4 h-4 sm:w-5 sm:h-5 shrink-0 accent-cyan-400 rounded cursor-pointer" />
+            </label>
+
+            <!-- 開關 3：題目鏡面夾角線 -->
+            <label class="flex items-center justify-between p-2 sm:p-2.5 rounded-xl bg-slate-800/50 border border-slate-700/70 cursor-pointer hover:border-slate-600 transition">
+              <div class="pr-2 sm:pr-3">
+                <div class="text-xs sm:text-sm text-slate-200 font-medium leading-tight">顯示題目圖卡夾角線 (30°/45°/60°)</div>
+                <div class="text-[10px] sm:text-xs text-slate-400 mt-0.5 leading-tight">圖卡邊界與「垂直鏡面」的夾角</div>
+              </div>
+              <input id="chkRefLines" type="checkbox" checked class="w-4 h-4 sm:w-5 sm:h-5 shrink-0 accent-cyan-400 rounded cursor-pointer" />
+            </label>
+
+            <!-- 開關 4：色光吸收物理模擬 -->
+            <label class="flex items-center justify-between p-2 sm:p-2.5 rounded-xl bg-slate-800/50 border border-slate-700/70 cursor-pointer hover:border-slate-600 transition">
+              <div class="pr-2 sm:pr-3">
+                <div class="text-xs sm:text-sm text-slate-200 font-medium leading-tight">模擬色光吸收與反射</div>
+                <div class="text-[10px] sm:text-xs text-slate-400 mt-0.5 leading-tight">紅/綠卡吸收藍光，僅白卡反射藍光</div>
+              </div>
+              <input id="chkColorPhysics" type="checkbox" checked class="w-4 h-4 sm:w-5 sm:h-5 shrink-0 accent-cyan-400 rounded cursor-pointer" />
+            </label>
+          </div>
+        </div>
+
+      </div>
+    </main>
+
+    <!-- 階梯式探究任務區 (Discovery Cards) -->
+    <section class="glass-panel rounded-2xl p-4 sm:p-6 space-y-4">
+      <div class="flex flex-col md:flex-row md:items-center justify-between gap-3 border-b border-slate-700/80 pb-3">
+        <div>
+          <h2 class="text-base sm:text-lg font-bold text-white flex items-center gap-2">
+            <span class="text-cyan-400">◈</span> 階梯式探究任務引導
+          </h2>
+          <p class="text-[11px] sm:text-sm text-slate-400 mt-0.5 leading-snug">請依序完成三個探究關卡，徹底掌握本題的兩個解題關鍵！</p>
+        </div>
+
+        <!-- 任務切換分頁鈕 -->
+        <div class="flex w-full md:w-auto rounded-xl bg-slate-900/90 p-1 border border-slate-700 shrink-0 gap-1 overflow-x-auto scrollbar-hide">
+          <button type="button" data-tab="1" class="tab-btn flex-1 md:flex-none px-2 sm:px-4 py-1.5 rounded-lg text-[11px] sm:text-sm font-medium bg-cyan-500/20 text-cyan-300 border border-cyan-400/40 transition cursor-pointer whitespace-nowrap text-center">任務一<span class="hidden sm:inline">：幾何落點</span></button>
+          <button type="button" data-tab="2" class="tab-btn flex-1 md:flex-none px-2 sm:px-4 py-1.5 rounded-lg text-[11px] sm:text-sm font-medium text-slate-400 hover:text-white transition cursor-pointer whitespace-nowrap text-center border border-transparent">任務二<span class="hidden sm:inline">：迷思破解</span></button>
+          <button type="button" data-tab="3" class="tab-btn flex-1 md:flex-none px-2 sm:px-4 py-1.5 rounded-lg text-[11px] sm:text-sm font-medium text-slate-400 hover:text-white transition cursor-pointer whitespace-nowrap text-center border border-transparent">任務三<span class="hidden sm:inline">：原題檢核</span></button>
+        </div>
+      </div>
+
+      <!-- 任務一內容：幾何落點範圍探索 -->
+      <div id="tabContent1" class="tab-content space-y-4">
+        <p class="text-xs sm:text-sm text-slate-300 leading-relaxed">
+          請拖動上方的「入射角 X」滑桿，觀察反射光線分別落在<span class="text-rose-400 font-bold">紅色</span>、<span class="text-white font-bold">白色</span>、<span class="text-emerald-400 font-bold">綠色</span>圖卡上時，入射角 <span class="font-mono-tech text-cyan-300">X</span> 介於哪兩個整數角度之間？
+        </p>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4">
+          <!-- 紅卡範圍 -->
+          <div class="p-3 sm:p-3.5 rounded-xl bg-rose-950/25 border border-rose-500/30 flex flex-col space-y-2">
+            <div class="text-xs sm:text-sm font-bold text-rose-300">1. 落在「紅色圖卡」時</div>
+            <div class="flex items-center gap-1.5 text-xs sm:text-sm font-mono-tech">
+              <input id="inRedMin" type="number" placeholder="最小" class="w-14 sm:w-20 px-1.5 sm:px-2.5 py-1.5 rounded bg-slate-900 border border-slate-600 text-white text-center focus:border-cyan-400 focus:outline-none shrink-0" />
+              <span>° &lt; X &lt;</span>
+              <input id="inRedMax" type="number" placeholder="最大" class="w-14 sm:w-20 px-1.5 sm:px-2.5 py-1.5 rounded bg-slate-900 border border-slate-600 text-white text-center focus:border-cyan-400 focus:outline-none shrink-0" />
+              <span>°</span>
+            </div>
+          </div>
+
+          <!-- 白卡範圍 -->
+          <div class="p-3 sm:p-3.5 rounded-xl bg-slate-800/40 border border-slate-400/40 flex flex-col space-y-2">
+            <div class="text-xs sm:text-sm font-bold text-white">2. 落在「白色圖卡」時</div>
+            <div class="flex items-center gap-1.5 text-xs sm:text-sm font-mono-tech">
+              <input id="inWhiteMin" type="number" placeholder="最小" class="w-14 sm:w-20 px-1.5 sm:px-2.5 py-1.5 rounded bg-slate-900 border border-slate-600 text-white text-center focus:border-cyan-400 focus:outline-none shrink-0" />
+              <span>° &lt; X &lt;</span>
+              <input id="inWhiteMax" type="number" placeholder="最大" class="w-14 sm:w-20 px-1.5 sm:px-2.5 py-1.5 rounded bg-slate-900 border border-slate-600 text-white text-center focus:border-cyan-400 focus:outline-none shrink-0" />
+              <span>°</span>
+            </div>
+          </div>
+
+          <!-- 綠卡範圍 -->
+          <div class="p-3 sm:p-3.5 rounded-xl bg-emerald-950/25 border border-emerald-500/30 flex flex-col space-y-2">
+            <div class="text-xs sm:text-sm font-bold text-emerald-300">3. 落在「綠色圖卡」時</div>
+            <div class="flex items-center gap-1.5 text-xs sm:text-sm font-mono-tech">
+              <input id="inGreenMin" type="number" placeholder="最小" class="w-14 sm:w-20 px-1.5 sm:px-2.5 py-1.5 rounded bg-slate-900 border border-slate-600 text-white text-center focus:border-cyan-400 focus:outline-none shrink-0" />
+              <span>° &lt; X &lt;</span>
+              <input id="inGreenMax" type="number" placeholder="最大" class="w-14 sm:w-20 px-1.5 sm:px-2.5 py-1.5 rounded bg-slate-900 border border-slate-600 text-white text-center focus:border-cyan-400 focus:outline-none shrink-0" />
+              <span>°</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="flex flex-col sm:flex-row sm:items-center gap-3">
+          <button id="btnCheckTask1" type="button" class="w-full sm:w-auto px-5 py-2 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white text-sm font-bold shadow-[0_0_15px_rgba(8,145,178,0.4)] transition cursor-pointer">驗證我的角度範圍</button>
+          <span id="task1Feedback" class="text-xs sm:text-sm font-medium leading-tight"></span>
+        </div>
+      </div>
+
+      <!-- 任務二內容：雙重迷思破解 -->
+      <div id="tabContent2" class="tab-content hidden space-y-4">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div class="p-3.5 sm:p-4 rounded-xl bg-slate-800/60 border border-amber-400/30 space-y-2">
+            <div class="flex items-center gap-2 text-amber-300 font-bold text-sm">
+              <span>迷思關卡 A：幾何角度基準陷阱</span>
+            </div>
+            <p class="text-[11px] sm:text-sm text-slate-300 leading-relaxed">
+              題目圖中標示的 <span class="font-mono-tech text-amber-300">30°、45°、60°</span>，是光線與<strong class="text-white">「垂直平面鏡」</strong>的夾角；但物理定義的入射角與反射角，是光線與<strong class="text-cyan-300">「水平法線」</strong>的夾角！
+            </p>
+            <div class="p-2.5 rounded-lg bg-slate-900/90 font-mono-tech text-[10px] sm:text-xs text-cyan-200 border border-slate-700 leading-relaxed">
+              反射光與鏡面夾角 = 90° - 反射角 X<br/>
+              當 X 越大（光線越傾斜），反射光反而越靠近鏡面（落在紅卡）！
+            </div>
+          </div>
+
+          <div class="p-3.5 sm:p-4 rounded-xl bg-slate-800/60 border border-sky-400/30 space-y-2">
+            <div class="flex items-center gap-2 text-sky-300 font-bold text-sm">
+              <span>迷思關卡 B：為什麼只有特定圖卡能看見藍點？</span>
+            </div>
+            <p class="text-[11px] sm:text-sm text-slate-300 leading-relaxed">
+              你會發現選項 <span class="font-mono-tech">(A) 35°、(B) 40°、(C) 50°、(D) 75°</span> 反射後<strong class="text-white">全部都會落在圖卡上</strong>！但題目強調要「形成<span class="text-cyan-300 font-bold">藍色光點</span>」：
+            </p>
+            <ul class="text-[11px] sm:text-sm text-slate-300 space-y-1 list-disc list-inside">
+              <li><span class="text-rose-400 font-bold">紅色圖卡</span>：只反射紅光，會<strong class="text-slate-200">吸收藍光</strong>（呈現黑色）。</li>
+              <li><span class="text-emerald-400 font-bold">綠色圖卡</span>：只反射綠光，會<strong class="text-slate-200">吸收藍光</strong>（呈現黑色）。</li>
+              <li><span class="text-white font-bold">白色圖卡</span>：能<strong class="text-cyan-300">反射所有色光</strong>，因此只有落在白卡才能看見藍色光點！</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <!-- 任務三內容：原題實戰檢核 -->
+      <div id="tabContent3" class="tab-content hidden space-y-4">
+        <p class="text-xs sm:text-sm text-slate-300 leading-relaxed">
+          綜合「反射定律」與「色光反射」兩個條件，請選出最可能為入射角 <span class="font-mono-tech text-cyan-300">X</span> 的數值（點擊選項將同步在實驗畫布中驗證）：
+        </p>
+
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3">
+          <button type="button" data-quiz="35" class="quiz-btn p-2.5 sm:p-3.5 rounded-xl bg-slate-800/90 hover:bg-slate-700 border border-slate-600 text-left transition cursor-pointer flex flex-col justify-center">
+            <div class="font-mono-tech font-bold text-sm sm:text-base text-white">(A) 35</div>
+            <div class="text-[10px] sm:text-xs text-slate-400 mt-0.5 sm:mt-1">點擊測試此選項</div>
+          </button>
+          <button type="button" data-quiz="40" class="quiz-btn p-2.5 sm:p-3.5 rounded-xl bg-slate-800/90 hover:bg-slate-700 border border-slate-600 text-left transition cursor-pointer flex flex-col justify-center">
+            <div class="font-mono-tech font-bold text-sm sm:text-base text-white">(B) 40</div>
+            <div class="text-[10px] sm:text-xs text-slate-400 mt-0.5 sm:mt-1">點擊測試此選項</div>
+          </button>
+          <button type="button" data-quiz="50" class="quiz-btn p-2.5 sm:p-3.5 rounded-xl bg-slate-800/90 hover:bg-slate-700 border border-slate-600 text-left transition cursor-pointer flex flex-col justify-center">
+            <div class="font-mono-tech font-bold text-sm sm:text-base text-white">(C) 50</div>
+            <div class="text-[10px] sm:text-xs text-slate-400 mt-0.5 sm:mt-1">點擊測試此選項</div>
+          </button>
+          <button type="button" data-quiz="75" class="quiz-btn p-2.5 sm:p-3.5 rounded-xl bg-slate-800/90 hover:bg-slate-700 border border-slate-600 text-left transition cursor-pointer flex flex-col justify-center">
+            <div class="font-mono-tech font-bold text-sm sm:text-base text-white">(D) 75</div>
+            <div class="text-[10px] sm:text-xs text-slate-400 mt-0.5 sm:mt-1">點擊測試此選項</div>
+          </button>
+        </div>
+
+        <div id="quizFeedback" class="hidden p-3.5 sm:p-4 rounded-xl border text-[11px] sm:text-sm leading-relaxed"></div>
+      </div>
+
+    </section>
+
+  </div>
+
+  <!-- 頁尾簽名 -->
+  <footer style="text-align: right; margin-top: 48px; padding: 20px 0; font-size: 0.85em; color: #777; border-top: 1px solid #eee;">
+    by Jay's Lab 紅樓老頭子 系統版本：v1.2
+  </footer>
+
+  <script>
+    (function() {
+      // ==========================================
+      // 1. 狀態管理 (State Management)
+      // ==========================================
+      const state = {
+        incidentAngle: 30,       // 入射角 X (度)
+        showNormal: true,        // 是否顯示法線
+        showAngles: true,        // 是否顯示入射/反射角弧線
+        showRefLines: true,      // 是否顯示題目鏡面夾角參考線 (30°, 45°, 60°)
+        colorPhysics: true,      // 是否啟用色光吸收反射物理模擬
+        isDragging: false,       // 畫布拖曳狀態
+        pulsePhase: 0            // 光點呼吸光暈動畫相位
+      };
+
+      // 幾何座標快取 (供滑鼠/觸控互動計算角度)
+      let geom = {
+        mirrorX: 0,
+        tableY: 0,
+        pointPY: 0,
+        H: 0
+      };
+
+      // ==========================================
+      // 2. DOM 元素綁定
+      // ==========================================
+      const canvas = document.getElementById('opticsCanvas');
+      const ctx = canvas.getContext('2d');
+      const canvasWrapper = document.getElementById('canvasWrapper');
+
+      const angleSlider = document.getElementById('angleSlider');
+      const sliderBadge = document.getElementById('sliderBadge');
+      const btnMinus = document.getElementById('btnMinus');
+      const btnPlus = document.getElementById('btnPlus');
+
+      const statIncident = document.getElementById('statIncident');
+      const statReflect = document.getElementById('statReflect');
+      const statMirrorAngle = document.getElementById('statMirrorAngle');
+      const statusCard = document.getElementById('statusCard');
+      const statSpotTitle = document.getElementById('statSpotTitle');
+      const statSpotSub = document.getElementById('statSpotSub');
+
+      const chkNormal = document.getElementById('chkNormal');
+      const chkAngles = document.getElementById('chkAngles');
+      const chkRefLines = document.getElementById('chkRefLines');
+      const chkColorPhysics = document.getElementById('chkColorPhysics');
+
+      const btnToggleProblem = document.getElementById('btnToggleProblem');
+      const problemDrawer = document.getElementById('problemDrawer');
+      const toggleProblemText = document.getElementById('toggleProblemText');
+
+      // ==========================================
+      // 3. 物理判定邏輯
+      // ==========================================
+      function analyzeOptics(X) {
+        const reflectAngle = X;
+        const mirrorAngle = 90 - X; // 反射光與垂直平面鏡的夾角
+
+        let zone = 'out';
+        let zoneName = '超出綠色圖卡右側';
+        let canSeeBlueSpot = false;
+        let description = '光線落在圖卡範圍之外';
+        let accentColor = '#94a3b8';
+
+        // 依據反射光與鏡面夾角 mirrorAngle 判斷落點區間
+        if (Math.abs(mirrorAngle - 30) < 0.01) {
+          zone = 'border-rw';
+          zoneName = '紅卡與白卡交界線';
+          canSeeBlueSpot = true;
+          description = '剛好落在 30° 交界處';
+          accentColor = '#38bdf8';
+        } else if (Math.abs(mirrorAngle - 45) < 0.01) {
+          zone = 'border-wg';
+          zoneName = '白卡與綠卡交界線';
+          canSeeBlueSpot = true;
+          description = '剛好落在 45° 交界處';
+          accentColor = '#38bdf8';
+        } else if (Math.abs(mirrorAngle - 60) < 0.01) {
+          zone = 'border-go';
+          zoneName = '綠色圖卡右邊緣';
+          canSeeBlueSpot = false;
+          description = '剛好落在 60° 綠卡邊緣';
+          accentColor = '#34d399';
+        } else if (mirrorAngle < 30) {
+          zone = 'red';
+          zoneName = '紅色圖卡上';
+          canSeeBlueSpot = false;
+          description = state.colorPhysics ? '紅卡吸收藍光，無法形成藍色光點' : '幾何落點位於紅色圖卡區間';
+          accentColor = '#fb7185';
+        } else if (mirrorAngle > 30 && mirrorAngle < 45) {
+          zone = 'white';
+          zoneName = '白色圖卡上';
+          canSeeBlueSpot = true;
+          description = '白卡反射藍光，成功形成明顯藍色光點！';
+          accentColor = '#00f0ff';
+        } else if (mirrorAngle > 45 && mirrorAngle < 60) {
+          zone = 'green';
+          zoneName = '綠色圖卡上';
+          canSeeBlueSpot = false;
+          description = state.colorPhysics ? '綠卡吸收藍光，無法形成藍色光點' : '幾何落點位於綠色圖卡區間';
+          accentColor = '#34d399';
+        } else {
+          zone = 'out';
+          zoneName = '超出綠色圖卡右側';
+          canSeeBlueSpot = false;
+          description = '反射光過於平緩，落在圖卡右方桌面';
+          accentColor = '#94a3b8';
+        }
+
+        return { X, reflectAngle, mirrorAngle, zone, zoneName, canSeeBlueSpot, description, accentColor };
+      }
+
+      // ==========================================
+      // 4. 更新 UI 儀表板
+      // ==========================================
+      function updateUI() {
+        const res = analyzeOptics(state.incidentAngle);
+
+        angleSlider.value = state.incidentAngle;
+        sliderBadge.textContent = `X = ${state.incidentAngle}°`;
+        statIncident.textContent = `${res.X}°`;
+        statReflect.textContent = `${res.reflectAngle}°`;
+        statMirrorAngle.textContent = `${res.mirrorAngle}°`;
+
+        statSpotTitle.textContent = res.zoneName;
+        statSpotTitle.style.color = res.accentColor;
+        statSpotSub.textContent = res.description;
+        statusCard.style.borderLeftColor = res.accentColor;
+
+        // 高亮對應預設選項按鈕
+        document.querySelectorAll('.preset-btn').forEach(btn => {
+          const val = Number(btn.dataset.preset);
+          if (val === state.incidentAngle) {
+            btn.classList.add('border-cyan-400', 'bg-cyan-950/60', 'text-cyan-300');
+          } else {
+            btn.classList.remove('border-cyan-400', 'bg-cyan-950/60', 'text-cyan-300');
+          }
+        });
+      }
+
+      // ==========================================
+      // 5. Canvas 高解析度響應式繪製
+      // ==========================================
+      let canvasSize = { width: 0, height: 0, dpr: 0 };
+
+      function resizeCanvas() {
+        // CSS 顯示尺寸與繪圖解析度分開，避免高 DPR 裝置放大後被容器裁切。
+        const width = canvasWrapper.clientWidth;
+        const height = canvasWrapper.clientHeight;
+        if (!width || !height) return;
+        const dpr = window.devicePixelRatio || 1;
+        const pixelWidth = Math.round(width * dpr);
+        const pixelHeight = Math.round(height * dpr);
+        if (canvas.width !== pixelWidth || canvas.height !== pixelHeight) {
+          canvas.width = pixelWidth;
+          canvas.height = pixelHeight;
+        }
+        ctx.setTransform(canvas.width / width, 0, 0, canvas.height / height, 0, 0);
+        canvasSize = { width, height, dpr };
+      }
+
+      // 圖形依可用空間縮放，文字保留原字級；必要時移開並以引導線對應原位置。
+      function drawSceneLabels(labels, width, height, obstacles) {
+        const padding = 8;
+        const occupied = obstacles.slice();
+        const placed = [];
+        const overlaps = (a, b) => a.x < b.x + b.width &&
+          a.x + a.width > b.x && a.y < b.y + b.height &&
+          a.y + a.height > b.y;
+        const offsets = [
+          [0, 0], [0, -18], [0, 18], [24, 0], [-24, 0],
+          [24, -18], [24, 18], [-24, -18], [-24, 18],
+          [0, -36], [0, 36], [48, 0], [-48, 0], [0, 54]
+        ];
+
+        ctx.save();
+        labels.sort((a, b) => b.priority - a.priority).forEach(label => {
+          ctx.font = label.font;
+          const metrics = ctx.measureText(label.text);
+          const ascent = metrics.actualBoundingBoxAscent || 12;
+          const descent = Math.max(2, metrics.actualBoundingBoxDescent || 0);
+          const textWidth = metrics.width;
+          const originX = label.x - (label.align === 'center' ? textWidth / 2 :
+            label.align === 'right' ? textWidth : 0);
+          const originY = label.y - ascent;
+          const makeBox = (x, y) => ({
+            x: Math.max(padding, Math.min(x - 3, width - padding - textWidth - 6)),
+            y: Math.max(padding, Math.min(y - 2, height - padding - ascent - descent - 4)),
+            width: textWidth + 6,
+            height: ascent + descent + 4
+          });
+          // 鏡面直排名稱與 P 點保留固定對應位置，讓取景改變時仍容易辨認。
+          let box = label.priority >= 5 ? makeBox(originX, originY) : null;
+          for (const [dx, dy] of box ? [] : offsets) {
+            const candidate = makeBox(originX + dx, originY + dy);
+            if (!occupied.some(other => overlaps(candidate, other))) {
+              box = candidate;
+              break;
+            }
+          }
+          // 窄畫面或很小的入射角：在畫布內找最近的空位，避免標示彼此遮住。
+          if (!box) {
+            let bestDistance = Infinity;
+            for (let y = padding; y <= height - padding - ascent - descent - 4; y += 12) {
+              for (let x = padding; x <= width - padding - textWidth - 6; x += 12) {
+                const candidate = makeBox(x + 3, y + 2);
+                const distance = (candidate.x - originX + 3) ** 2 + (candidate.y - originY + 2) ** 2;
+                if (distance < bestDistance && !occupied.some(other => overlaps(candidate, other))) {
+                  box = candidate;
+                  bestDistance = distance;
+                }
+              }
+            }
+          }
+          box = box || makeBox(originX, originY);
+          occupied.push(box);
+          placed.push({ ...label, box, ascent, originX, originY });
+        });
+
+        // 先畫引導線，再畫文字，避免引導線壓住其他標示。
+        placed.forEach(label => {
+          const { box } = label;
+          if (label.connect || Math.hypot(box.x + 3 - label.originX, box.y + 2 - label.originY) > 6) {
+            const endX = Math.max(box.x, Math.min(label.anchorX, box.x + box.width));
+            const endY = Math.max(box.y, Math.min(label.anchorY, box.y + box.height));
+            ctx.strokeStyle = label.color;
+            ctx.globalAlpha = 0.5;
+            ctx.lineWidth = 0.8;
+            ctx.setLineDash([]);
+            ctx.beginPath();
+            ctx.moveTo(label.anchorX, label.anchorY);
+            ctx.lineTo(endX, endY);
+            ctx.stroke();
+          }
+        });
+        ctx.globalAlpha = 1;
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'alphabetic';
+        ctx.lineJoin = 'round';
+        ctx.lineWidth = 4;
+        ctx.strokeStyle = '#0b1120';
+        placed.forEach(label => {
+          ctx.font = label.font;
+          ctx.fillStyle = label.color;
+          const x = label.box.x + 3;
+          const y = label.box.y + 2 + label.ascent;
+          ctx.strokeText(label.text, x, y);
+          ctx.fillText(label.text, x, y);
+        });
+        ctx.restore();
+      }
+
+      function drawArrowHead(ctx, fromX, fromY, toX, toY, size, color) {
+        const midX = (fromX + toX) * 0.52;
+        const midY = (fromY + toY) * 0.52;
+        const angle = Math.atan2(toY - fromY, toX - fromX);
+
+        ctx.save();
+        ctx.translate(midX, midY);
+        ctx.rotate(angle);
+        ctx.beginPath();
+        ctx.moveTo(size, 0);
+        ctx.lineTo(-size * 0.8, size * 0.55);
+        ctx.lineTo(-size * 0.4, 0);
+        ctx.lineTo(-size * 0.8, -size * 0.55);
+        ctx.closePath();
+        ctx.fillStyle = color;
+        ctx.fill();
+        ctx.restore();
+      }
+
+      function renderScene() {
+        const width = canvasWrapper.clientWidth;
+        const height = canvasWrapper.clientHeight;
+        if (!width || !height) return;
+        if (canvasSize.width !== width || canvasSize.height !== height ||
+            canvasSize.dpr !== (window.devicePixelRatio || 1)) resizeCanvas();
+        ctx.clearRect(0, 0, width, height);
+
+        const labels = [];
+        const addLabel = (text, x, y, anchorX = x, anchorY = y, priority = 0, connect = false) => {
+          labels.push({ text, x, y, anchorX, anchorY, priority, connect,
+            font: ctx.font, color: ctx.fillStyle, align: ctx.textAlign });
+        };
+        const degToRad = d => (d * Math.PI) / 180;
+        const radX = degToRad(state.incidentAngle);
+        const mirrorAngleRad = degToRad(90 - state.incidentAngle);
+        const mirrorX = Math.max(48, width * 0.13);
+        // P 點不隨入射角移動，讓重新取景後的滑鼠／觸控拖曳仍然穩定。
+        const pointPY = Math.max(94, height * 0.42);
+        const cardHeight = 11;
+        const maxSpan = Math.max(1, width - mirrorX - 34);
+        // 同一比例同時納入綠卡右緣與目前反射落點，維持真實角度，不分別拉伸 X/Y 軸。
+        const effectiveH = Math.max(1, Math.min(
+          height - pointPY - cardHeight - 56,
+          maxSpan / Math.max(Math.tan(degToRad(60)), Math.tan(mirrorAngleRad))
+        ));
+        const cardTop = pointPY + effectiveH;
+        const tableY = cardTop + cardHeight;
+        const H = effectiveH + cardHeight;
+        geom = { mirrorX, tableY, pointPY, H };
+
+        const x30 = mirrorX + effectiveH * Math.tan(degToRad(30));
+        const x45 = mirrorX + effectiveH * Math.tan(degToRad(45));
+        const x60 = mirrorX + effectiveH * Math.tan(degToRad(60));
+        const redLabelX = (mirrorX + x30) / 2;
+        const whiteLabelX = Math.max((x30 + x45) / 2, redLabelX + 26);
+        const greenLabelX = Math.max((x45 + x60) / 2, whiteLabelX + 26);
+
+        // 1. 繪製背景微細網格刻度
+        ctx.save();
+        ctx.strokeStyle = 'rgba(56, 189, 248, 0.06)';
+        ctx.lineWidth = 1;
+        for (let gx = mirrorX; gx < width; gx += 30) {
+          ctx.beginPath();
+          ctx.moveTo(gx, 16);
+          ctx.lineTo(gx, tableY);
+          ctx.stroke();
+        }
+        ctx.restore();
+
+        // 2. 繪製桌面底座
+        ctx.save();
+        ctx.fillStyle = '#1e293b';
+        ctx.fillRect(mirrorX - 16, tableY, width - mirrorX - 6, 14);
+        ctx.strokeStyle = '#475569';
+        ctx.lineWidth = 1.5;
+        ctx.strokeRect(mirrorX - 16, tableY, width - mirrorX - 6, 14);
+        ctx.fillStyle = '#94a3b8';
+        ctx.font = '12px "Noto Sans TC", sans-serif';
+        addLabel('桌面', width - 38, tableY + 32, width - 26, tableY + 7);
+        ctx.restore();
+
+        // 3. 繪製紅、白、綠三張圖卡
+        // 紅色圖卡 (0° ~ 30°)
+        ctx.save();
+        ctx.fillStyle = '#e11d48';
+        ctx.fillRect(mirrorX, cardTop, x30 - mirrorX, cardHeight);
+        ctx.strokeStyle = '#fda4af';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(mirrorX, cardTop, x30 - mirrorX, cardHeight);
+        ctx.fillStyle = '#fda4af';
+        ctx.font = 'bold 13px "Noto Sans TC", sans-serif';
+        ctx.textAlign = 'center';
+        addLabel('紅', redLabelX, tableY + 32, (mirrorX + x30) / 2, cardTop + 5, 2);
+
+        // 白色圖卡 (30° ~ 45°)
+        ctx.fillStyle = '#f8fafc';
+        ctx.fillRect(x30, cardTop, x45 - x30, cardHeight);
+        ctx.strokeStyle = '#cbd5e1';
+        ctx.strokeRect(x30, cardTop, x45 - x30, cardHeight);
+        ctx.fillStyle = '#f8fafc';
+        addLabel('白', whiteLabelX, tableY + 32, (x30 + x45) / 2, cardTop + 5, 2,
+          whiteLabelX > (x30 + x45) / 2 + 1);
+
+        // 綠色圖卡 (45° ~ 60°)
+        ctx.fillStyle = '#10b981';
+        ctx.fillRect(x45, cardTop, x60 - x45, cardHeight);
+        ctx.strokeStyle = '#6ee7b7';
+        ctx.strokeRect(x45, cardTop, x60 - x45, cardHeight);
+        ctx.fillStyle = '#6ee7b7';
+        addLabel('綠', greenLabelX, tableY + 32, (x45 + x60) / 2, cardTop + 5, 2,
+          greenLabelX > (x45 + x60) / 2 + 1);
+        ctx.restore();
+
+        // 4. 繪製題目基準角度參考線 (30°, 45°, 60°)
+        if (state.showRefLines) {
+          ctx.save();
+          ctx.setLineDash([3, 4]);
+          ctx.strokeStyle = 'rgba(148, 163, 184, 0.5)';
+          ctx.lineWidth = 1.2;
+
+          const refTargets = [
+            { x: x30, label: '30°', r: Math.min(48, effectiveH * 0.25) },
+            { x: x45, label: '45°', r: Math.min(72, effectiveH * 0.38) },
+            { x: x60, label: '60°', r: Math.min(96, effectiveH * 0.51) }
+          ];
+
+          refTargets.forEach(t => {
+            ctx.beginPath();
+            ctx.moveTo(mirrorX, pointPY);
+            ctx.lineTo(t.x, cardTop);
+            ctx.stroke();
+
+            // 繪製與垂直鏡面夾角的參考弧線
+            const angleFromVertical = Math.atan2(t.x - mirrorX, cardTop - pointPY);
+            ctx.beginPath();
+            ctx.arc(mirrorX, pointPY, t.r, Math.PI / 2 - angleFromVertical, Math.PI / 2);
+            ctx.strokeStyle = 'rgba(148, 163, 184, 0.4)';
+            ctx.stroke();
+
+            // 標註角度文字
+            const midAng = Math.PI / 2 - angleFromVertical * 0.55;
+            const lx = mirrorX + (t.r + 12) * Math.cos(midAng);
+            const ly = pointPY + (t.r + 12) * Math.sin(midAng);
+            ctx.fillStyle = '#94a3b8';
+            ctx.font = '11px "JetBrains Mono", monospace';
+            ctx.textAlign = 'center';
+            addLabel(t.label, lx, ly, mirrorX + t.r * Math.cos(midAng), pointPY + t.r * Math.sin(midAng), 1);
+          });
+          ctx.restore();
+        }
+
+        // 5. 繪製左側垂直平面鏡
+        ctx.save();
+        const mirrorTop = Math.max(24, pointPY - Math.max(70, H * 0.55));
+        // 鏡面背面斜線紋理
+        ctx.fillStyle = '#334155';
+        ctx.fillRect(mirrorX - 10, mirrorTop, 10, tableY - mirrorTop);
+        ctx.strokeStyle = '#64748b';
+        ctx.lineWidth = 1;
+        for (let hy = mirrorTop + 6; hy < tableY; hy += 10) {
+          ctx.beginPath();
+          ctx.moveTo(mirrorX - 10, hy);
+          ctx.lineTo(mirrorX, hy - 6);
+          ctx.stroke();
+        }
+        // 鏡面反射面高光線
+        ctx.strokeStyle = '#38bdf8';
+        ctx.lineWidth = 3;
+        ctx.shadowColor = '#00f0ff';
+        ctx.shadowBlur = 8;
+        ctx.beginPath();
+        ctx.moveTo(mirrorX, mirrorTop);
+        ctx.lineTo(mirrorX, tableY);
+        ctx.stroke();
+        ctx.shadowBlur = 0;
+
+        // 平面鏡文字標籤
+        ctx.fillStyle = '#e2e8f0';
+        ctx.font = 'bold 13px "Noto Sans TC", sans-serif';
+        ctx.textAlign = 'center';
+        addLabel('平', mirrorX - 24, mirrorTop + 18, mirrorX - 24, mirrorTop + 18, 5);
+        addLabel('面', mirrorX - 24, mirrorTop + 36, mirrorX - 24, mirrorTop + 36, 5);
+        addLabel('鏡', mirrorX - 24, mirrorTop + 54, mirrorX - 24, mirrorTop + 54, 5);
+        ctx.restore();
+
+        // 6. 繪製法線 (垂直平面鏡的水平虛線)
+        if (state.showNormal) {
+          ctx.save();
+          ctx.setLineDash([6, 5]);
+          ctx.strokeStyle = '#fbbf24';
+          ctx.lineWidth = 1.6;
+          ctx.beginPath();
+          ctx.moveTo(mirrorX, pointPY);
+          const normalEndX = Math.min(width - 54, mirrorX + Math.max(90, H * 1.45));
+          ctx.lineTo(normalEndX, pointPY);
+          ctx.stroke();
+
+          ctx.fillStyle = '#fbbf24';
+          ctx.font = '12px "Noto Sans TC", sans-serif';
+          ctx.textAlign = 'left';
+          addLabel('法線', normalEndX + 6, pointPY + 4, normalEndX, pointPY, 3);
+          ctx.restore();
+        }
+
+        // 7. 計算藍色雷射入射光與反射光座標
+        const rayLen = Math.min(
+          Math.max(H * 1.35, 100),
+          (width - mirrorX - 34) / Math.cos(radX),
+          (pointPY - 34) / Math.sin(radX)
+        );
+        // 入射光從右上方射向 P 點 (與法線夾角 X 度)
+        const incStartX = mirrorX + rayLen * Math.cos(radX);
+        const incStartY = pointPY - rayLen * Math.sin(radX);
+
+        // 反射光從 P 點射向右下方 (與法線夾角 X 度，落於圖卡頂部 cardTop)
+        const hitX = mirrorX + effectiveH * Math.tan(mirrorAngleRad);
+        const clampedHitX = Math.min(width - 15, hitX);
+        const hitY = pointPY + (clampedHitX - mirrorX) / Math.tan(mirrorAngleRad);
+
+        // 繪製發光雷射光束
+        ctx.save();
+        ctx.strokeStyle = '#00f0ff';
+        ctx.lineWidth = 3;
+        ctx.shadowColor = '#00f0ff';
+        ctx.shadowBlur = 14;
+
+        // 入射光線
+        ctx.beginPath();
+        ctx.moveTo(incStartX, incStartY);
+        ctx.lineTo(mirrorX, pointPY);
+        ctx.stroke();
+
+        // 反射光線
+        ctx.beginPath();
+        ctx.moveTo(mirrorX, pointPY);
+        ctx.lineTo(clampedHitX, hitY);
+        ctx.stroke();
+        ctx.shadowBlur = 0;
+
+        // 光線方向箭頭
+        drawArrowHead(ctx, incStartX, incStartY, mirrorX, pointPY, 8, '#00f0ff');
+        drawArrowHead(ctx, mirrorX, pointPY, clampedHitX, hitY, 8, '#00f0ff');
+
+        // 雷射筆發射器圖示
+        ctx.fillStyle = '#0284c7';
+        ctx.strokeStyle = '#7dd3fc';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.arc(incStartX, incStartY, 6, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+        ctx.fillStyle = '#7dd3fc';
+        ctx.font = '11px "Noto Sans TC", sans-serif';
+        ctx.textAlign = 'left';
+        addLabel('藍光雷射', incStartX - 24, incStartY - 15, incStartX, incStartY, 4);
+        ctx.restore();
+
+        // 8. 繪製入射角與反射角弧線標示
+        if (state.showAngles) {
+          ctx.save();
+          const arcR = Math.min(44, Math.max(10, effectiveH * 0.55));
+          // 入射角弧線 (法線到入射光)
+          ctx.strokeStyle = '#38bdf8';
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.arc(mirrorX, pointPY, arcR, -radX, 0);
+          ctx.stroke();
+
+          // 反射角弧線 (法線到反射光)
+          ctx.strokeStyle = '#00f0ff';
+          ctx.beginPath();
+          ctx.arc(mirrorX, pointPY, arcR, 0, radX);
+          ctx.stroke();
+
+          // 角度文字標示
+          ctx.fillStyle = '#e0f2fe';
+          ctx.font = 'bold 12px "JetBrains Mono", monospace';
+          ctx.textAlign = 'left';
+          const labelR = arcR + 10;
+          addLabel(`X=${state.incidentAngle}°`, mirrorX + labelR * Math.cos(-radX * 0.5), pointPY + labelR * Math.sin(-radX * 0.5) - 2,
+            mirrorX + arcR * Math.cos(-radX * 0.5), pointPY + arcR * Math.sin(-radX * 0.5), 4);
+          addLabel(`${state.incidentAngle}°`, mirrorX + labelR * Math.cos(radX * 0.5), pointPY + labelR * Math.sin(radX * 0.5) + 10,
+            mirrorX + arcR * Math.cos(radX * 0.5), pointPY + arcR * Math.sin(radX * 0.5), 4);
+          ctx.restore();
+        }
+
+        // 9. 繪製 P 點標記
+        ctx.save();
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.arc(mirrorX, pointPY, 4.5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 14px "JetBrains Mono", monospace';
+        addLabel('P', mirrorX + 8, pointPY - 10, mirrorX, pointPY, 6);
+        ctx.restore();
+
+        // 10. 繪製桌面落點光斑特效 (核心物理回饋)
+        if (hitX <= width - 15) {
+          const res = analyzeOptics(state.incidentAngle);
+          const showBrightSpot = !state.colorPhysics || res.canSeeBlueSpot;
+
+          ctx.save();
+          if (showBrightSpot) {
+            // 白色圖卡反射藍光 -> 明亮發光的藍色光點 + 呼吸光暈
+            const pulse = 1 + 0.18 * Math.sin(state.pulsePhase);
+            const grad = ctx.createRadialGradient(hitX, cardTop, 1, hitX, cardTop, 26 * pulse);
+            grad.addColorStop(0, 'rgba(255, 255, 255, 1)');
+            grad.addColorStop(0.25, 'rgba(0, 240, 255, 0.95)');
+            grad.addColorStop(0.6, 'rgba(56, 189, 248, 0.45)');
+            grad.addColorStop(1, 'rgba(56, 189, 248, 0)');
+
+            ctx.fillStyle = grad;
+            ctx.beginPath();
+            ctx.arc(hitX, cardTop, 26 * pulse, 0, Math.PI * 2);
+            ctx.fill();
+
+            // 光點提示標籤
+            ctx.fillStyle = '#00f0ff';
+            ctx.font = 'bold 12px "Noto Sans TC", sans-serif';
+            ctx.textAlign = 'center';
+            addLabel('✦ 藍色光點', hitX, cardTop - 18, hitX, cardTop, 3);
+          } else {
+            // 紅卡或綠卡吸收藍光 -> 顯示暗淡吸收標記
+            ctx.strokeStyle = 'rgba(148, 163, 184, 0.7)';
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.arc(hitX, cardTop, 6, 0, Math.PI * 2);
+            ctx.stroke();
+
+            // 叉叉記號代表藍光被吸收
+            ctx.beginPath();
+            ctx.moveTo(hitX - 3.5, cardTop - 3.5);
+            ctx.lineTo(hitX + 3.5, cardTop + 3.5);
+            ctx.moveTo(hitX + 3.5, cardTop - 3.5);
+            ctx.lineTo(hitX - 3.5, cardTop + 3.5);
+            ctx.stroke();
+
+            ctx.fillStyle = '#94a3b8';
+            ctx.font = '11px "Noto Sans TC", sans-serif';
+            ctx.textAlign = 'center';
+            addLabel('藍光被吸收(無藍點)', hitX, cardTop - 13, hitX, cardTop, 3);
+          }
+          ctx.restore();
+        }
+
+        drawSceneLabels(labels, width, height, [
+          { x: mirrorX - 12, y: mirrorTop, width: 14, height: tableY - mirrorTop },
+          { x: mirrorX - 16, y: tableY - cardHeight, width: width - mirrorX - 6, height: cardHeight + 14 },
+          { x: mirrorX - 7, y: pointPY - 7, width: 14, height: 14 },
+          { x: incStartX - 8, y: incStartY - 8, width: 16, height: 16 }
+        ]);
+      }
+
+      // 動畫迴圈
+      function animateLoop() {
+        state.pulsePhase += 0.08;
+        renderScene();
+        requestAnimationFrame(animateLoop);
+      }
+
+      // ==========================================
+      // 6. 互動事件監聽
+      // ==========================================
+      function setAngle(newAngle) {
+        const clamped = Math.max(5, Math.min(85, Math.round(newAngle)));
+        state.incidentAngle = clamped;
+        updateUI();
+      }
+
+      angleSlider.addEventListener('input', e => setAngle(Number(e.target.value)));
+      btnMinus.addEventListener('click', () => setAngle(state.incidentAngle - 1));
+      btnPlus.addEventListener('click', () => setAngle(state.incidentAngle + 1));
+
+      document.querySelectorAll('.preset-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          setAngle(Number(btn.dataset.preset));
+        });
+      });
+
+      chkNormal.addEventListener('change', e => { state.showNormal = e.target.checked; });
+      chkAngles.addEventListener('change', e => { state.showAngles = e.target.checked; });
+      chkRefLines.addEventListener('change', e => { state.showRefLines = e.target.checked; });
+      chkColorPhysics.addEventListener('change', e => {
+        state.colorPhysics = e.target.checked;
+        updateUI();
+      });
+
+      // 折疊/展開考題題幹
+      btnToggleProblem.addEventListener('click', () => {
+        const isHidden = problemDrawer.classList.contains('hidden');
+        if (isHidden) {
+          problemDrawer.classList.remove('hidden');
+          toggleProblemText.textContent = '收合原始會考題幹';
+        } else {
+          problemDrawer.classList.add('hidden');
+          toggleProblemText.textContent = '展開原始會考題幹';
+        }
+      });
+
+      // 畫布直接拖曳調整入射角 (支援滑鼠與觸控)
+      function updateAngleFromPointer(clientX, clientY) {
+        const rect = canvas.getBoundingClientRect();
+        if (!rect.width || !rect.height) return;
+        const px = (clientX - rect.left) * canvasWrapper.clientWidth / rect.width;
+        const py = (clientY - rect.top) * canvasWrapper.clientHeight / rect.height;
+        const dx = px - geom.mirrorX;
+        const dy = geom.pointPY - py; // 上方為正
+
+        if (dx > 5) {
+          // 計算點擊位置與法線的夾角
+          const angleRad = Math.atan2(Math.abs(dy), dx);
+          const angleDeg = (angleRad * 180) / Math.PI;
+          setAngle(angleDeg);
+        }
+      }
+
+      canvas.addEventListener('mousedown', e => {
+        state.isDragging = true;
+        updateAngleFromPointer(e.clientX, e.clientY);
+      });
+      window.addEventListener('mousemove', e => {
+        if (state.isDragging) updateAngleFromPointer(e.clientX, e.clientY);
+      });
+      window.addEventListener('mouseup', () => { state.isDragging = false; });
+
+      canvas.addEventListener('touchstart', e => {
+        if (e.touches.length > 0) {
+          state.isDragging = true;
+          updateAngleFromPointer(e.touches[0].clientX, e.touches[0].clientY);
+        }
+      }, { passive: true });
+      canvas.addEventListener('touchmove', e => {
+        if (state.isDragging && e.touches.length > 0) {
+          e.preventDefault();
+          updateAngleFromPointer(e.touches[0].clientX, e.touches[0].clientY);
+        }
+      }, { passive: false });
+      window.addEventListener('touchend', () => { state.isDragging = false; });
+      window.addEventListener('touchcancel', () => { state.isDragging = false; });
+
+      // ==========================================
+      // 7. 探究任務分頁與檢核邏輯
+      // ==========================================
+      const tabBtns = document.querySelectorAll('.tab-btn');
+      const tabContents = document.querySelectorAll('.tab-content');
+
+      tabBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+          const target = btn.dataset.tab;
+          tabBtns.forEach(b => {
+            b.classList.remove('bg-cyan-500/20', 'text-cyan-300', 'border-cyan-400/40');
+            b.classList.add('text-slate-400', 'border-transparent');
+          });
+          btn.classList.add('bg-cyan-500/20', 'text-cyan-300', 'border-cyan-400/40');
+          btn.classList.remove('text-slate-400', 'border-transparent');
+
+          tabContents.forEach(c => c.classList.add('hidden'));
+          document.getElementById(`tabContent${target}`).classList.remove('hidden');
+        });
+      });
+
+      // 任務一檢核：紅(60~90), 白(45~60), 綠(30~45)
+      document.getElementById('btnCheckTask1').addEventListener('click', () => {
+        const rMin = Number(document.getElementById('inRedMin').value);
+        const rMax = Number(document.getElementById('inRedMax').value);
+        const wMin = Number(document.getElementById('inWhiteMin').value);
+        const wMax = Number(document.getElementById('inWhiteMax').value);
+        const gMin = Number(document.getElementById('inGreenMin').value);
+        const gMax = Number(document.getElementById('inGreenMax').value);
+
+        const fb = document.getElementById('task1Feedback');
+        const redOk = (rMin === 60 && rMax === 90);
+        const whiteOk = (wMin === 45 && wMax === 60);
+        const greenOk = (gMin === 30 && gMax === 45);
+
+        if (redOk && whiteOk && greenOk) {
+          fb.className = 'text-xs sm:text-sm font-bold text-emerald-400 mt-2 sm:mt-0';
+          fb.textContent = '🎉 完全正確！紅卡 (60°~90°)、白卡 (45°~60°)、綠卡 (30°~45°)，你已掌握反射角與鏡面夾角的互餘關係！';
+        } else {
+          fb.className = 'text-xs sm:text-sm font-medium text-amber-300 mt-2 sm:mt-0';
+          let hints = [];
+          if (!redOk) hints.push('紅色圖卡範圍');
+          if (!whiteOk) hints.push('白色圖卡範圍');
+          if (!greenOk) hints.push('綠色圖卡範圍');
+          fb.textContent = `💡 再試試看！請檢查「${hints.join('、')}」，觀察交界線時的入射角 X 數值。`;
+        }
+      });
+
+      // 任務三：原題實戰檢核
+      const quizFeedback = document.getElementById('quizFeedback');
+      document.querySelectorAll('.quiz-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const choice = Number(btn.dataset.quiz);
+          setAngle(choice);
+
+          // 重設按鈕樣式
+          document.querySelectorAll('.quiz-btn').forEach(b => {
+            b.classList.remove('border-emerald-400', 'bg-emerald-950/50', 'border-rose-400', 'bg-rose-950/50');
+          });
+
+          quizFeedback.classList.remove('hidden');
+          if (choice === 50) {
+            btn.classList.add('border-emerald-400', 'bg-emerald-950/50');
+            quizFeedback.className = 'p-3.5 sm:p-4 rounded-xl border border-emerald-500/40 bg-emerald-950/30 text-emerald-200 text-[11px] sm:text-sm leading-relaxed';
+            quizFeedback.innerHTML = `
+              <strong class="text-emerald-300 text-sm sm:text-base">✅ 答對了！正確答案為 (C) 50</strong><br/>
+              1. <strong>反射定律推論：</strong>入射角 X = 50° 時，反射角亦為 50°，因此反射光與垂直鏡面的夾角為 <code>90° - 50° = 40°</code>，介於 30° 與 45° 之間，剛好落在<strong>白色圖卡</strong>上。<br/>
+              2. <strong>色光反射原理：</strong>白色物體能反射所有色光，因此藍光照射白色圖卡會反射藍光並形成明顯的<strong>藍色光點</strong>。
+            `;
+          } else {
+            btn.classList.add('border-rose-400', 'bg-rose-950/50');
+            quizFeedback.className = 'p-3.5 sm:p-4 rounded-xl border border-rose-500/40 bg-rose-950/30 text-rose-200 text-[11px] sm:text-sm leading-relaxed';
+            let reason = '';
+            if (choice === 35 || choice === 40) {
+              reason = `當入射角 X = ${choice}° 時，反射光與鏡面夾角為 <code>90° - ${choice}° = ${90 - choice}°</code>（介於 45°~60°），光線會落在<strong>綠色圖卡</strong>上；但綠色圖卡會<strong>吸收藍光</strong>，無法形成藍色光點！`;
+            } else if (choice === 75) {
+              reason = `當入射角 X = 75° 時，反射光與鏡面夾角為 <code>90° - 75° = 15°</code>（小於 30°），光線會落在<strong>紅色圖卡</strong>上；但紅色圖卡會<strong>吸收藍光</strong>，無法形成藍色光點！`;
+            }
+            quizFeedback.innerHTML = `<strong class="text-rose-300">❌ 再想一想（已幫你將光線切換至 ${choice}° 觀察）：</strong><br/>${reason}`;
+          }
+        });
+      });
+
+      // 初始化
+      window.addEventListener('resize', resizeCanvas);
+      if ('ResizeObserver' in window) {
+        const canvasObserver = new ResizeObserver(resizeCanvas);
+        canvasObserver.observe(canvasWrapper);
+      }
+      window.onload = function() {
+        resizeCanvas();
+        updateUI();
+        animateLoop();
+      };
+    })();
+  </script>
+</body>
+</html>
