@@ -1,0 +1,607 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <title>光學反射探究與解題 - 暗室雷射</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+    body {
+      background-color: #121212;
+      color: #eee;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      margin: 0;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    h2 { 
+      color: #00ffff; 
+      text-shadow: 0 0 10px rgba(0,255,255,0.5); 
+      margin-bottom: 20px;
+    }
+    
+    /* 最上方獨立欄位：可收合的挑戰任務 */
+    .top-mission-wrapper {
+      width: 100%;
+      max-width: 1200px;
+      margin-bottom: 25px;
+    }
+
+    .main-container {
+      display: flex;
+      flex-direction: row;
+      flex-wrap: wrap;
+      justify-content: center;
+      align-items: flex-start;
+      gap: 30px;
+      max-width: 1200px;
+      width: 100%;
+    }
+    
+    .left-panel {
+      flex: 0 0 auto;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+    
+    .canvas-container {
+      background: #1e1e1e;
+      padding: 10px;
+      border-radius: 10px;
+      border: 1px solid #333;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.6);
+    }
+    canvas {
+      background-color: #0b0f19;
+      border-radius: 8px;
+      display: block;
+    }
+    
+    .right-panel {
+      flex: 1;
+      min-width: 340px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+    
+    .card {
+      background: #1a1c23;
+      border: 1px solid #2d3748;
+      border-radius: 8px;
+      padding: 20px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+    }
+    
+    /* 可收合挑戰任務樣式 */
+    .question-card {
+      padding: 0;
+      overflow: hidden;
+    }
+    .question-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 16px 20px;
+      cursor: pointer;
+      user-select: none;
+      background: #1f232e;
+      transition: background 0.2s;
+    }
+    .question-header:hover {
+      background: #252b38;
+    }
+    .question-header h3 { 
+      color: #ffb74d; 
+      margin: 0; 
+      display: flex; 
+      align-items: center; 
+      gap: 8px; 
+    }
+    .toggle-badge {
+      font-size: 0.85em;
+      color: #ffb74d;
+      background: rgba(255, 183, 77, 0.12);
+      border: 1px solid rgba(255, 183, 77, 0.4);
+      padding: 4px 10px;
+      border-radius: 20px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .question-body {
+      padding: 18px 20px 20px 20px;
+      border-top: 1px solid #2d3748;
+      display: block;
+    }
+    .question-card.collapsed .question-body {
+      display: none;
+    }
+
+    .question-text {
+      font-size: 1.05em;
+      line-height: 1.6;
+      color: #e2e8f0;
+      margin-top: 0;
+      margin-bottom: 15px;
+      letter-spacing: 0.5px;
+    }
+    .options { 
+      display: grid; 
+      grid-template-columns: repeat(4, 1fr); 
+      gap: 12px; 
+      font-weight: 500; 
+      color: #a0aec0;
+      background: #000;
+      padding: 14px 16px;
+      border-radius: 6px;
+      border: 1px solid #333;
+    }
+    @media (max-width: 640px) {
+      .options {
+        grid-template-columns: 1fr 1fr;
+      }
+    }
+    
+    .guide-card h3 { color: #00ffff; margin-top: 0; }
+    .test-buttons { 
+      display: grid; 
+      grid-template-columns: 1fr 1fr; 
+      gap: 10px; 
+      margin-bottom: 15px; 
+    }
+    .test-btn { 
+      background: #2a364f; 
+      border: 1px solid #4fd1c5; 
+      color: #00ffff; 
+      padding: 12px; 
+      border-radius: 6px; 
+      cursor: pointer; 
+      font-weight: bold; 
+      font-size: 0.95em;
+      transition: all 0.2s;
+    }
+    .test-btn:hover { 
+      background: #00ffff; 
+      color: #000; 
+      box-shadow: 0 0 12px rgba(0,255,255,0.6);
+    }
+    
+    .explanation-box { 
+      background: #0f172a; 
+      border-left: 4px solid #00ffff; 
+      padding: 15px; 
+      font-size: 0.95em; 
+      line-height: 1.6; 
+      color: #a8f0ef;
+      min-height: 60px;
+      border-radius: 0 6px 6px 0;
+      transition: all 0.3s ease;
+    }
+    
+    .manual-card h3 { color: #48bb78; margin-top: 0; }
+    .control-row { 
+      display: flex; 
+      align-items: center; 
+      gap: 12px; 
+      margin-bottom: 14px; 
+    }
+    .control-row:last-child {
+      margin-bottom: 0;
+    }
+    .control-row label { 
+      font-weight: bold; 
+      min-width: 118px;
+      white-space: nowrap;
+      flex-shrink: 0;
+      color: #cbd5e0;
+    }
+    .btn-toggle { 
+      background: #2d3748; 
+      color: #fff; 
+      border: 1px solid #4a5568; 
+      padding: 8px 16px; 
+      border-radius: 4px; 
+      cursor: pointer; 
+      transition: 0.2s;
+      white-space: nowrap;
+    }
+    .btn-toggle.active { 
+      background: #48bb78; 
+      border-color: #48bb78; 
+      color: #fff;
+      box-shadow: 0 0 8px rgba(72,187,120,0.5);
+    }
+    input[type=range] { 
+      flex: 1; 
+      min-width: 120px;
+      max-width: 280px;
+      cursor: pointer; 
+    }
+    #angleDisplay {
+      width: 58px;
+      text-align: right;
+      font-family: monospace;
+      flex-shrink: 0;
+      white-space: nowrap;
+    }
+  </style>
+</head>
+<body>
+
+  <h2>🔬 光學反射探究與解題 - 暗室雷射</h2>
+
+  <!-- 最上方獨立欄位：可收合挑戰任務 -->
+  <div class="top-mission-wrapper">
+    <div id="questionCard" class="card question-card">
+      <div class="question-header" onclick="toggleMission()">
+        <h3>📋 挑戰任務</h3>
+        <span id="missionToggleBadge" class="toggle-badge">收合 ▲</span>
+      </div>
+      <div class="question-body">
+        <p class="question-text">
+          如圖(二)，在水平地面上畫上正方形的方格，平面鏡與牆壁互相垂直，且均豎立於地面上。若持雷射筆在方格上 S 點或 T 點，令雷射光沿著水平面分別照射平面鏡上的 P、Q、R 三點，則以下列何種方式照射，其反射的雷射光<u>不會</u>照射到牆壁上？
+        </p>
+        <div class="options">
+          <div>(A) S → Q</div>
+          <div>(B) S → P</div>
+          <div>(C) T → R</div>
+          <div>(D) T → P</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <div class="main-container">
+    <!-- 左側：實驗動畫區 -->
+    <div class="left-panel">
+      <div class="canvas-container">
+        <canvas id="simCanvas" width="500" height="500"></canvas>
+      </div>
+    </div>
+    
+    <!-- 右側：上為手動操作區，下為探究引導與實測區 -->
+    <div class="right-panel">
+      
+      <!-- 手動操作區塊 -->
+      <div class="card manual-card">
+        <h3>⚙️ 手動操作區</h3>
+        <div class="control-row">
+          <label>📍 雷射起點：</label>
+          <button id="btnS" class="btn-toggle active" onclick="setOrigin('S')">S 點</button>
+          <button id="btnT" class="btn-toggle" onclick="setOrigin('T')">T 點</button>
+        </div>
+        <div class="control-row">
+          <label>📐 自由瞄準：</label>
+          <input type="range" id="angleSlider" min="180" max="270" step="0.1" value="233.1" oninput="updateAngle()">
+          <span id="angleDisplay">233.1°</span>
+        </div>
+        <div class="control-row">
+          <label>📏 顯示法線：</label>
+          <input type="checkbox" id="showNormal" checked onchange="draw()" style="transform: scale(1.2); cursor: pointer;">
+        </div>
+      </div>
+
+      <!-- 探究引導區塊 -->
+      <div class="card guide-card">
+        <h3>💡 探究引導與實測</h3>
+        <div class="test-buttons">
+          <button class="test-btn" onclick="runTest('A')">測試 (A) S → Q</button>
+          <button class="test-btn" onclick="runTest('B')">測試 (B) S → P</button>
+          <button class="test-btn" onclick="runTest('C')">測試 (C) T → R</button>
+          <button class="test-btn" onclick="runTest('D')">測試 (D) T → P</button>
+        </div>
+        <div id="explanationText" class="explanation-box">
+          請點擊上方按鈕，進行各選項的光路實測，驗證反射定律！
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <footer style="text-align: right; margin-top: 48px; padding: 20px 0; font-size: 0.85em; color: #777; border-top: 1px solid #333; width: 100%; max-width: 1200px;">by Jay's Lab 紅樓老頭子 系統版本：v2.3</footer>
+
+  <script>
+    const canvas = document.getElementById('simCanvas');
+    const ctx = canvas.getContext('2d');
+    const slider = document.getElementById('angleSlider');
+    const angleDisplay = document.getElementById('angleDisplay');
+    const showNormalCheck = document.getElementById('showNormal');
+    
+    // 網格環境參數設定
+    const MARGIN = 50;
+    const GRID_SIZE = 80;
+    const WIDTH = 500;
+    const HEIGHT = 500;
+    const MAX_X = MARGIN + 5 * GRID_SIZE; // x=5 邊界
+    const MAX_Y = MARGIN + 5 * GRID_SIZE; // y=0 地面
+    const WALL_MAX_X = MARGIN + 4 * GRID_SIZE; // 牆壁僅至 x=4
+    
+    // 定義各點座標
+    const POINTS = {
+      P: {x: MARGIN, y: MARGIN + 1 * GRID_SIZE}, // 高度 4格
+      Q: {x: MARGIN, y: MARGIN + 2 * GRID_SIZE}, // 高度 3格
+      R: {x: MARGIN, y: MARGIN + 3 * GRID_SIZE}, // 高度 2格
+      S: {x: MARGIN + 3 * GRID_SIZE, y: MAX_Y},  // 寬度 3格
+      T: {x: MARGIN + 4 * GRID_SIZE, y: MAX_Y}   // 寬度 4格
+    };
+
+    let origin = 'S';
+    let currentAngle = 233.1;
+
+    // 挑戰任務收合切換
+    function toggleMission() {
+      const card = document.getElementById('questionCard');
+      const badge = document.getElementById('missionToggleBadge');
+      const isCollapsed = card.classList.toggle('collapsed');
+      badge.textContent = isCollapsed ? '展開 ▼' : '收合 ▲';
+    }
+
+    // 手動設定起點
+    function setOrigin(pt) {
+      origin = pt;
+      document.getElementById('btnS').classList.remove('active');
+      document.getElementById('btnT').classList.remove('active');
+      document.getElementById('btn' + pt).classList.add('active');
+      
+      // 清除教學提示狀態
+      resetExplanation("手動調整中，請觀察反射光路與角度變化...");
+      draw();
+    }
+
+    // 自動瞄準計算
+    function aimAt(target) {
+      const dx = POINTS[target].x - POINTS[origin].x;
+      const dy = POINTS[target].y - POINTS[origin].y;
+      let ang = Math.atan2(dy, dx) * 180 / Math.PI;
+      if (ang < 0) ang += 360;
+      currentAngle = ang;
+      slider.value = ang;
+      angleDisplay.innerText = currentAngle.toFixed(1) + '°';
+      draw();
+    }
+
+    // 滑桿更新
+    function updateAngle() {
+      currentAngle = parseFloat(slider.value);
+      angleDisplay.innerText = currentAngle.toFixed(1) + '°';
+      resetExplanation("手動調整中，請觀察反射光路與角度變化...");
+      draw();
+    }
+
+    // 重設提示視窗顏色
+    function resetExplanation(text) {
+      const expBox = document.getElementById('explanationText');
+      expBox.innerHTML = text;
+      expBox.style.borderLeftColor = "#48bb78";
+      expBox.style.color = "#a8f0ef";
+    }
+
+    // 執行步驟測試
+    function runTest(testId) {
+      let explanation = "";
+      let isCorrect = false;
+      
+      if (testId === 'A') {
+        origin = 'S'; aimAt('Q');
+        explanation = "【測試 A】從 S(3,0) 到 Q(0,3)。向左3格、向上3格。反射光將向右3格、向上3格。擊中頂部牆壁 (x=2 處)。";
+      } else if (testId === 'B') {
+        origin = 'S'; aimAt('P');
+        explanation = "【測試 B】從 S(3,0) 到 P(0,4)。向左3格、向上4格。反射光向右3格、向上4格。擊中頂部牆壁 (x=0.75 處)。";
+      } else if (testId === 'C') {
+        origin = 'T'; aimAt('R');
+        explanation = "【測試 C】從 T(4,0) 到 R(0,2)。向左4格、向上2格。反射光向右4格、向上2格。抵達頂部時 x=6，<br><strong style='color:#ff5555; font-size:1.1em;'>超出牆壁範圍(x=0~4)！未擊中！這就是本題答案。</strong>";
+        isCorrect = true;
+      } else if (testId === 'D') {
+        origin = 'T'; aimAt('P');
+        explanation = "【測試 D】從 T(4,0) 到 P(0,4)。向左4格、向上4格。反射光向右4格、向上4格。擊中頂部牆壁 (x=1 處)。";
+      }
+      
+      // 更新按鈕狀態顯示起點
+      document.getElementById('btnS').classList.remove('active');
+      document.getElementById('btnT').classList.remove('active');
+      document.getElementById('btn' + origin).classList.add('active');
+
+      const expBox = document.getElementById('explanationText');
+      expBox.innerHTML = explanation;
+      if (isCorrect) {
+        expBox.style.borderLeftColor = "#ff5555";
+        expBox.style.color = "#ffdddd";
+      } else {
+        expBox.style.borderLeftColor = "#00ffff";
+        expBox.style.color = "#a8f0ef";
+      }
+    }
+
+    // 繪製格線
+    function drawGrid() {
+      ctx.strokeStyle = '#2d3748';
+      ctx.lineWidth = 1;
+      for (let i = 0; i <= 5; i++) {
+        let x = MARGIN + i * GRID_SIZE;
+        ctx.beginPath(); ctx.moveTo(x, MARGIN); ctx.lineTo(x, MAX_Y); ctx.stroke();
+        let y = MARGIN + i * GRID_SIZE;
+        ctx.beginPath(); ctx.moveTo(MARGIN, y); ctx.lineTo(MAX_X, y); ctx.stroke();
+      }
+    }
+
+    // 繪製牆壁與鏡子
+    function drawEnvironment() {
+      // 牆壁 (只到 x=4)
+      ctx.shadowBlur = 10;
+      ctx.shadowColor = '#000';
+      ctx.strokeStyle = '#718096';
+      ctx.lineWidth = 12;
+      ctx.lineCap = 'square';
+      ctx.beginPath();
+      ctx.moveTo(MARGIN, MARGIN);
+      ctx.lineTo(WALL_MAX_X, MARGIN);
+      ctx.stroke();
+      
+      ctx.shadowBlur = 0;
+      ctx.fillStyle = '#a0aec0';
+      ctx.font = 'bold 16px sans-serif';
+      ctx.fillText("牆壁 (範圍 x=0~4)", WALL_MAX_X / 2 - 50, MARGIN - 20);
+
+      // 平面鏡
+      ctx.shadowBlur = 12;
+      ctx.shadowColor = '#00ffff';
+      ctx.strokeStyle = '#319795';
+      ctx.lineWidth = 8;
+      ctx.beginPath();
+      ctx.moveTo(MARGIN, MARGIN);
+      ctx.lineTo(MARGIN, MAX_Y);
+      ctx.stroke();
+      
+      ctx.fillStyle = '#4fd1c5';
+      ctx.fillText("平", MARGIN - 35, MAX_Y / 2 - 15);
+      ctx.fillText("面", MARGIN - 35, MAX_Y / 2 + 5);
+      ctx.fillText("鏡", MARGIN - 35, MAX_Y / 2 + 25);
+    }
+
+    // 繪製標記點
+    function drawPoints() {
+      ctx.font = 'bold 20px sans-serif';
+      for (let key in POINTS) {
+        let p = POINTS[key];
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, 6, 0, Math.PI * 2);
+        ctx.fillStyle = (key === 'S' || key === 'T') ? '#ecc94b' : '#fff';
+        ctx.fill();
+        
+        ctx.fillStyle = '#cbd5e0';
+        if (key === 'P' || key === 'Q' || key === 'R') {
+          ctx.fillText(key, p.x + 12, p.y - 10);
+        } else {
+          ctx.fillText(key, p.x - 30, p.y - 12);
+        }
+      }
+    }
+
+    // 繪製雷射光與物理反射運算
+    function drawRay() {
+      let sx = POINTS[origin].x;
+      let sy = POINTS[origin].y;
+      let rad = currentAngle * Math.PI / 180;
+      let dx = Math.cos(rad);
+      let dy = Math.sin(rad);
+
+      ctx.shadowBlur = 15;
+      ctx.shadowColor = '#00ffff';
+      ctx.strokeStyle = '#00ffff';
+      ctx.lineWidth = 3;
+
+      let t_mirror = (dx !== 0) ? (MARGIN - sx) / dx : -1;
+      let hitMirror = false;
+      let hit_y = 0;
+      
+      ctx.beginPath();
+      ctx.moveTo(sx, sy);
+
+      // 檢查是否命中鏡面
+      if (t_mirror > 0) {
+        hit_y = sy + t_mirror * dy;
+        if (hit_y >= MARGIN && hit_y <= MAX_Y) {
+          hitMirror = true;
+        }
+      }
+
+      if (hitMirror) {
+        // 入射光
+        ctx.lineTo(MARGIN, hit_y);
+        ctx.stroke();
+
+        // 繪製法線 (洋紅色)
+        if (showNormalCheck.checked) {
+          ctx.shadowBlur = 0;
+          ctx.strokeStyle = '#ff00ff';
+          ctx.setLineDash([8, 6]);
+          ctx.beginPath();
+          ctx.moveTo(MARGIN, hit_y);
+          ctx.lineTo(MARGIN + 150, hit_y);
+          ctx.stroke();
+          ctx.setLineDash([]);
+          ctx.shadowBlur = 15;
+          ctx.strokeStyle = '#00ffff'; // 恢復雷射發光
+        }
+
+        // 計算反射向量
+        let ndx = -dx;
+        let ndy = dy;
+        let t_wall = (ndy !== 0) ? (MARGIN - hit_y) / ndy : -1;
+        
+        if (t_wall > 0) {
+          let hit_x = MARGIN + t_wall * ndx;
+          ctx.beginPath();
+          ctx.moveTo(MARGIN, hit_y);
+          
+          if (hit_x <= WALL_MAX_X) {
+            // 命中牆壁
+            ctx.lineTo(hit_x, MARGIN);
+            ctx.stroke();
+            
+            // 命中光點提示
+            ctx.beginPath();
+            ctx.arc(hit_x, MARGIN, 5, 0, Math.PI*2);
+            ctx.fillStyle = '#00ffff';
+            ctx.fill();
+          } else {
+            // 飛出牆壁範圍，計算到達畫布邊界的交點以繪製射線
+            let t_top = (0 - hit_y) / ndy;
+            let t_right = (WIDTH - MARGIN) / ndx;
+            let t = Math.min(t_top, t_right);
+            
+            ctx.lineTo(MARGIN + t * ndx, hit_y + t * ndy);
+            ctx.stroke();
+          }
+        }
+      } else {
+        // 未命中鏡面，讓光線自然延伸至畫布邊界
+        let t_top = dy < 0 ? (0 - sy) / dy : Infinity;
+        let t_side = dx > 0 ? (WIDTH - sx) / dx : (0 - sx) / dx;
+        let t = Math.min(t_top, Math.abs(t_side));
+        ctx.lineTo(sx + t * dx, sy + t * dy);
+        ctx.stroke();
+      }
+      ctx.shadowBlur = 0;
+    }
+
+    // 繪製雷射筆本體
+    function drawLaserPen() {
+      let sx = POINTS[origin].x;
+      let sy = POINTS[origin].y;
+      let rad = currentAngle * Math.PI / 180;
+      ctx.save();
+      ctx.translate(sx, sy);
+      ctx.rotate(rad);
+      ctx.fillStyle = '#718096';
+      ctx.fillRect(-35, -5, 35, 10);
+      ctx.fillStyle = '#2d3748';
+      ctx.fillRect(-15, -6, 5, 12);
+      ctx.fillStyle = '#00ffff';
+      ctx.shadowBlur = 10;
+      ctx.shadowColor = '#00ffff';
+      ctx.fillRect(-2, -3, 3, 6);
+      ctx.restore();
+    }
+
+    // 主渲染循環
+    function draw() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      drawGrid();
+      drawEnvironment();
+      drawPoints();
+      drawRay();
+      drawLaserPen();
+    }
+
+    // 初始狀態
+    draw();
+  </script>
+</body>
+</html>
